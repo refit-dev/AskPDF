@@ -2,6 +2,7 @@ import { db } from '@/db'
 import { stripe } from '@/lib/stripe'
 import { headers } from 'next/headers'
 import type Stripe from 'stripe'
+import { getSubscriptionPeriodEnd, getInvoiceSubscription } from './stripeSubscriptionPeriod';
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         stripeSubscriptionId: subscription.id,
         stripeCustomerId: subscription.customer as string,
         stripePriceId: subscription.items.data[0]?.price.id,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000)
+        stripeCurrentPeriodEnd: new Date((getSubscriptionPeriodEnd(subscription, (items) => items[0])) * 1000)
       }
     })
   }
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     // Retrieve the subscription details from Stripe.
     const subscription =
       await stripe.subscriptions.retrieve(
-        session.subscription as string
+        (getInvoiceSubscription(session)) as string
       )
     
     await db.user.update({
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
       },
       data: {
         stripePriceId: subscription.items.data[0]?.price.id,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000)
+        stripeCurrentPeriodEnd: new Date((getSubscriptionPeriodEnd(subscription, (items) => items[0])) * 1000)
       }
     })
   }
